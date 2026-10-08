@@ -9,7 +9,6 @@ import {
 } from "../../lib/db";
 import type { Exam, Attempt, Question } from "../../lib/types";
 import { formatDate } from "../../lib/utils";
-import { exportResultsToExcel } from "../../lib/exportExcel";
 import {
   ArrowLeft,
   Download,
@@ -91,9 +90,10 @@ export default function TeacherExamResultsPage() {
     };
   });
 
-  const handleExport = () => {
+  const handleExport = async () => {
     if (!exam) return;
-    exportResultsToExcel(exam.title, attempts);
+    const { exportResultsToExcel } = await import("../../lib/exportExcel");
+    await exportResultsToExcel(exam.title, attempts);
   };
 
   if (loading) {

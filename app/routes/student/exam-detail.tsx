@@ -42,7 +42,7 @@ export default function StudentExamDetailPage() {
       ]);
       setExam(eDoc);
       const studentAtts = aList.filter(
-        (a) => a.studentId === (userProfile?.uid || "demo-student-uid")
+        (a) => a.studentId === userProfile?.uid
       );
       setAttempts(studentAtts);
     } finally {
@@ -51,7 +51,7 @@ export default function StudentExamDetailPage() {
   }
 
   const handleStartExam = async () => {
-    if (!exam || !id) return;
+    if (!exam || !id || !userProfile) return;
     setStarting(true);
 
     try {
@@ -81,8 +81,8 @@ export default function StudentExamDetailPage() {
       const newAttempt: Attempt = {
         id: attemptId,
         examId: id,
-        studentId: userProfile?.uid || "demo-student-uid",
-        studentName: userProfile?.name || "Học sinh",
+        studentId: userProfile.uid,
+        studentName: userProfile.name || "Học sinh",
         classId: exam.classIds[0] || "",
         attemptNo: completedCount + 1,
         status: "in_progress",

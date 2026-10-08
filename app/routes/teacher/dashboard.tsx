@@ -25,8 +25,12 @@ export default function TeacherDashboard() {
 
   useEffect(() => {
     async function loadData() {
+      if (!userProfile?.uid) return;
       try {
-        const [cList, eList] = await Promise.all([getClasses(), getExams()]);
+        const [cList, eList] = await Promise.all([
+          getClasses(userProfile.uid),
+          getExams({ ownerId: userProfile.uid }),
+        ]);
         setClasses(cList);
         setExams(eList);
       } catch (err) {
@@ -36,7 +40,7 @@ export default function TeacherDashboard() {
       }
     }
     loadData();
-  }, []);
+  }, [userProfile?.uid]);
 
   const totalQuestions = exams.reduce((acc, e) => acc + (e.questionCount || 0), 0);
 
@@ -178,18 +182,21 @@ export default function TeacherDashboard() {
                       <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
                         <Link
                           to={`/t/exams/${exam.id}/questions`}
+                          prefetch="intent"
                           className="px-3 py-1.5 rounded-xl bg-indigo-50 text-indigo-700 font-bold text-xs hover:bg-indigo-100 transition-colors"
                         >
                           Câu hỏi
                         </Link>
                         <Link
                           to={`/t/exams/${exam.id}/results`}
+                          prefetch="intent"
                           className="px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 font-bold text-xs hover:bg-slate-200 transition-colors"
                         >
                           Bảng điểm
                         </Link>
                         <Link
                           to={`/t/exams/${exam.id}`}
+                          prefetch="intent"
                           className="px-3 py-1.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-50 transition-colors"
                         >
                           Sửa

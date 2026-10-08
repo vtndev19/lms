@@ -37,7 +37,7 @@ export function GoogleIcon() {
 }
 
 export default function LoginPage() {
-  const { login, loginWithGoogle, resetPassword, loginDemo } = useAuth();
+  const { login, loginWithGoogle, resetPassword } = useAuth();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState("");
@@ -95,10 +95,6 @@ export default function LoginPage() {
     }
   };
 
-  const handleQuickDemo = (role: "teacher" | "student") => {
-    loginDemo(role);
-    navigate(role === "teacher" ? "/t" : "/s");
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
@@ -198,28 +194,6 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Quick Demo Access Bar */}
-          <div className="mt-6 pt-5 border-t border-slate-100">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-2.5 text-center flex items-center justify-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-amber-500" /> Trải nghiệm thử nghiệm không cần tài khoản:
-            </span>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => handleQuickDemo("teacher")}
-                className="py-2 px-3 rounded-xl bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 text-xs font-bold transition-all shadow-xs flex items-center justify-center"
-              >
-                Vào là Giáo viên
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickDemo("student")}
-                className="py-2 px-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 text-xs font-bold transition-all shadow-xs flex items-center justify-center"
-              >
-                Vào là Học sinh
-              </button>
-            </div>
-          </div>
 
           <div className="mt-6 text-center text-xs text-slate-500">
             Chưa có tài khoản?{" "}

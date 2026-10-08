@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
@@ -53,121 +53,77 @@ interface AuthContextType {
   loginWithGoogle: (role?: UserRole) => Promise<UserProfile>;
   resetPassword: (email: string) => Promise<void>;
   logout: () => Promise<void>;
-  loginDemo: (role: UserRole) => void;
+  refreshUserProfile: () => Promise<UserProfile | null>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const DEMO_TEACHER: UserProfile = {
-  uid: "demo-teacher-uid",
-  name: "Thầy Nguyễn Văn An (Demo)",
-  email: "giaovien@demo.edu.vn",
-  role: "teacher",
-  classIds: ["demo-class-6i0", "demo-class-7a1"],
-};
-
-const DEMO_STUDENT: UserProfile = {
-  uid: "demo-student-uid",
-  name: "Trần Minh Quân (Demo)",
-  email: "hocsinh@demo.edu.vn",
-  role: "student",
-  classIds: ["demo-class-6i0"],
-};
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("lms_demo_user");
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch {}
-      }
-    }
-    return DEMO_TEACHER;
-  });
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const savedDemo = localStorage.getItem("lms_demo_user");
-      if (savedDemo) {
-        try {
-          setUserProfile(JSON.parse(savedDemo));
-          setLoading(false);
-          return;
-        } catch {}
+  const fetchProfile = useCallback(async (uid: string, fallbackUser?: FirebaseUser | null): Promise<UserProfile> => {
+    try {
+      const userDoc = await getDoc(doc(db, "users", uid));
+      if (userDoc.exists()) {
+        const data = userDoc.data() as Omit<UserProfile, "uid">;
+        const profile: UserProfile = {
+          uid,
+          ...data,
+          classIds: Array.isArray(data.classIds) ? data.classIds : [],
+        };
+        setUserProfile(profile);
+        return profile;
       }
+    } catch (err) {
+      console.warn("Lỗi đọc Firestore users:", err);
     }
 
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setCurrentUser(user);
-      if (user) {
-        try {
-          const userDoc = await getDoc(doc(db, "users", user.uid));
-          if (userDoc.exists()) {
-            const data = userDoc.data() as Omit<UserProfile, "uid">;
-            setUserProfile({
-              uid: user.uid,
-              ...data,
-            });
-          } else {
-            const fallback: UserProfile = {
-              uid: user.uid,
-              name: user.displayName || user.email?.split("@")[0] || "Người dùng",
-              email: user.email || "",
-              role: "student",
-              classIds: [],
-            };
-            setUserProfile(fallback);
-          }
-        } catch (err) {
-          console.error("Lỗi tải thông tin user:", err);
-        }
-      } else {
-        // Chỉ xóa userProfile nếu không đang ở chế độ demo
-        if (typeof window !== "undefined" && !localStorage.getItem("lms_demo_user")) {
-          setUserProfile(null);
-        }
-      }
-      setLoading(false);
-    });
-
-    return unsubscribe;
-  }, []);
-
-  const login = async (email: string, pass: string): Promise<UserProfile> => {
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("lms_demo_user");
-    }
-    const cred = await signInWithEmailAndPassword(auth, email, pass);
-    let profile: UserProfile = {
-      uid: cred.user.uid,
-      name: cred.user.displayName || email.split("@")[0],
-      email: cred.user.email || email,
+    // Nếu document chưa tồn tại, tạo mặc định
+    const fallback: UserProfile = {
+      uid,
+      name: fallbackUser?.displayName || fallbackUser?.email?.split("@")[0] || "Người dùng",
+      email: fallbackUser?.email || "",
       role: "student",
       classIds: [],
     };
 
     try {
-      const userDoc = await getDoc(doc(db, "users", cred.user.uid));
-      if (userDoc.exists()) {
-        profile = {
-          uid: cred.user.uid,
-          ...(userDoc.data() as Omit<UserProfile, "uid">),
-        };
-      } else {
-        await setDoc(doc(db, "users", cred.user.uid), {
-          ...profile,
-          createdAt: serverTimestamp(),
-        });
-      }
-    } catch (err: any) {
-      console.warn("Lưu ý: Chưa thể đồng bộ Firestore users (hãy kiểm tra Firestore Rules):", err?.message);
+      await setDoc(doc(db, "users", uid), {
+        ...fallback,
+        createdAt: serverTimestamp(),
+      });
+    } catch (err) {
+      console.warn("Lỗi khởi tạo Firestore users:", err);
     }
 
-    setUserProfile(profile);
+    setUserProfile(fallback);
+    return fallback;
+  }, []);
+
+  const refreshUserProfile = useCallback(async (): Promise<UserProfile | null> => {
+    if (!auth.currentUser) return null;
+    return await fetchProfile(auth.currentUser.uid, auth.currentUser);
+  }, [fetchProfile]);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      setCurrentUser(user);
+      if (user) {
+        await fetchProfile(user.uid, user);
+      } else {
+        setUserProfile(null);
+      }
+      setLoading(false);
+    });
+
+    return unsubscribe;
+  }, [fetchProfile]);
+
+  const login = async (email: string, pass: string): Promise<UserProfile> => {
+    const cred = await signInWithEmailAndPassword(auth, email, pass);
+    const profile = await fetchProfile(cred.user.uid, cred.user);
     return profile;
   };
 
@@ -177,9 +133,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     name: string,
     role: UserRole
   ): Promise<UserProfile> => {
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("lms_demo_user");
-    }
     const cred = await createUserWithEmailAndPassword(auth, email, pass);
     const newProfile: UserProfile = {
       uid: cred.user.uid,
@@ -195,7 +148,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         createdAt: serverTimestamp(),
       });
     } catch (err: any) {
-      console.warn("Lưu ý: Chưa thể ghi Firestore users (hãy cập nhật Firestore Rules):", err?.message);
+      console.warn("Lỗi ghi Firestore users khi đăng ký:", err?.message);
     }
 
     setUserProfile(newProfile);
@@ -203,43 +156,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const loginWithGoogle = async (chosenRole: UserRole = "student"): Promise<UserProfile> => {
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("lms_demo_user");
-    }
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: "select_account" });
     const cred = await signInWithPopup(auth, provider);
     const user = cred.user;
-
-    let profile: UserProfile = {
-      uid: user.uid,
-      name: user.displayName || user.email?.split("@")[0] || "Người dùng Google",
-      email: user.email || "",
-      role: chosenRole,
-      classIds: [],
-    };
 
     try {
       const userDocRef = doc(db, "users", user.uid);
       const userDoc = await getDoc(userDocRef);
 
       if (userDoc.exists()) {
-        profile = {
+        const data = userDoc.data() as Omit<UserProfile, "uid">;
+        const profile: UserProfile = {
           uid: user.uid,
-          ...(userDoc.data() as Omit<UserProfile, "uid">),
+          ...data,
+          classIds: Array.isArray(data.classIds) ? data.classIds : [],
         };
+        setUserProfile(profile);
+        return profile;
       } else {
+        const newProfile: UserProfile = {
+          uid: user.uid,
+          name: user.displayName || user.email?.split("@")[0] || "Người dùng Google",
+          email: user.email || "",
+          role: chosenRole,
+          classIds: [],
+        };
         await setDoc(userDocRef, {
-          ...profile,
+          ...newProfile,
           createdAt: serverTimestamp(),
         });
+        setUserProfile(newProfile);
+        return newProfile;
       }
     } catch (err: any) {
-      console.warn("Lưu ý: Chưa thể đọc/ghi Firestore users (hãy cập nhật Firestore Rules):", err?.message);
+      console.warn("Lỗi đọc/ghi Firestore users Google login:", err?.message);
+      const fallback: UserProfile = {
+        uid: user.uid,
+        name: user.displayName || "Người dùng Google",
+        email: user.email || "",
+        role: chosenRole,
+        classIds: [],
+      };
+      setUserProfile(fallback);
+      return fallback;
     }
-
-    setUserProfile(profile);
-    return profile;
   };
 
   const resetPassword = async (email: string): Promise<void> => {
@@ -247,22 +208,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = async () => {
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("lms_demo_user");
-    }
     setUserProfile(null);
     setCurrentUser(null);
     try {
       await signOut(auth);
     } catch {}
-  };
-
-  const loginDemo = (role: UserRole) => {
-    const demoUser = role === "teacher" ? DEMO_TEACHER : DEMO_STUDENT;
-    if (typeof window !== "undefined") {
-      localStorage.setItem("lms_demo_user", JSON.stringify(demoUser));
-    }
-    setUserProfile(demoUser);
   };
 
   return (
@@ -277,7 +227,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loginWithGoogle,
         resetPassword,
         logout,
-        loginDemo,
+        refreshUserProfile,
       }}
     >
       {children}

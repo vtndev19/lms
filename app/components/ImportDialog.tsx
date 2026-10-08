@@ -1,7 +1,7 @@
 import React, { useState } from "react";
-import * as XLSX from "xlsx";
 import { parseQuestionsJson, type ParseResult } from "../lib/parseJson";
 import { parseQuestionsExcel } from "../lib/parseExcel";
+import { downloadQuestionTemplateExcel } from "../lib/exportExcel";
 import type { QuestionImportItem } from "../lib/types";
 import { QuestionRenderer } from "./QuestionRenderer";
 import {
@@ -37,7 +37,7 @@ export const ImportDialog: React.FC<ImportDialogProps> = ({
 
   if (!isOpen) return null;
 
-  const handleDownloadExcelTemplate = () => {
+  const handleDownloadExcelTemplate = async () => {
     const sampleData = [
       {
         Loai: "single",
@@ -97,10 +97,7 @@ export const ImportDialog: React.FC<ImportDialogProps> = ({
       },
     ];
 
-    const ws = XLSX.utils.json_to_sheet(sampleData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "CauHoi");
-    XLSX.writeFile(wb, "mau_cauhoi.xlsx");
+    await downloadQuestionTemplateExcel(sampleData);
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -117,7 +114,7 @@ export const ImportDialog: React.FC<ImportDialogProps> = ({
       setStep(2);
     } else if (extension === "xlsx" || extension === "xls") {
       const buffer = await file.arrayBuffer();
-      const res = parseQuestionsExcel(buffer);
+      const res = await parseQuestionsExcel(buffer);
       setParseResult(res);
       setStep(2);
     } else {

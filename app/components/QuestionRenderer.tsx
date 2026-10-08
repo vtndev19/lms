@@ -137,7 +137,13 @@ export const QuestionRenderer: React.FC<QuestionRendererProps> = ({
       {/* Ảnh minh họa nếu có */}
       {question.imageUrl && (
         <div className="mb-5 max-w-lg overflow-hidden rounded-xl border border-slate-200">
-          <img src={question.imageUrl} alt="Minh họa" className="w-full h-auto object-cover" />
+          <img
+            src={question.imageUrl}
+            alt="Minh họa"
+            loading="lazy"
+            decoding="async"
+            className="w-full h-auto object-cover"
+          />
         </div>
       )}
 

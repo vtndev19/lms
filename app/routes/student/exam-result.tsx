@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router";
-import confetti from "canvas-confetti";
 import { Navbar } from "../../components/Navbar";
 import { ProtectedRoute } from "../../components/ProtectedRoute";
 import { QuestionRenderer } from "../../components/QuestionRenderer";
@@ -52,6 +51,7 @@ export default function ExamResultPage() {
 
       // Bắn pháo hoa ăn mừng nếu điểm cao (>= 50%)
       if (att.score && att.maxScore && att.score / att.maxScore >= 0.5) {
+        const { default: confetti } = await import("canvas-confetti");
         confetti({
           particleCount: 80,
           spread: 70,

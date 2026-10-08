@@ -1,16 +1,22 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, Suspense, lazy } from "react";
 import { useParams, Link } from "react-router";
 import { Navbar } from "../../components/Navbar";
 import { ProtectedRoute } from "../../components/ProtectedRoute";
 import { QuestionRenderer } from "../../components/QuestionRenderer";
-import { QuestionEditor } from "../../components/QuestionEditor";
-import { ImportDialog } from "../../components/ImportDialog";
+
+const QuestionEditor = lazy(() =>
+  import("../../components/QuestionEditor").then((m) => ({ default: m.QuestionEditor }))
+);
+const ImportDialog = lazy(() =>
+  import("../../components/ImportDialog").then((m) => ({ default: m.ImportDialog }))
+);
 import {
   getExamById,
   getQuestionsByExamId,
   getAnswerKeysByExamId,
   saveQuestionItem,
   deleteQuestionItem,
+  batchImportQuestions,
 } from "../../lib/db";
 import type { Exam, Question, AnswerKey, QuestionImportItem } from "../../lib/types";
 import {
@@ -94,56 +100,12 @@ export default function TeacherExamQuestionsPage() {
     mode: "append" | "replace"
   ) => {
     if (!id) return;
-    const letters = ["a", "b", "c", "d", "e", "f"];
-
-    if (mode === "replace") {
-      // Xóa tất cả các câu hỏi cũ trước
-      for (const q of questions) {
-        await deleteQuestionItem(id, q.id);
-      }
+    try {
+      await batchImportQuestions(id, importItems, mode);
+      await loadData(id);
+    } catch (err: any) {
+      alert("Lỗi import câu hỏi: " + err.message);
     }
-
-    for (const item of importItems) {
-      let options: any[] = [];
-      if (["single", "multiple"].includes(item.type) && item.options) {
-        options = item.options.map((t, idx) => ({ id: letters[idx], text: t }));
-      } else if (item.type === "truefalse") {
-        options = letters.slice(0, 4).map((l, idx) => ({
-          id: l,
-          text: item.options?.[idx] || `Ý ${l}`,
-        }));
-      }
-
-      let correct = item.answer;
-      if (item.type === "short") {
-        correct = {
-          accepted: Array.isArray(item.answer) ? item.answer : [String(item.answer)],
-          numeric: item.numeric,
-          tolerance: item.tolerance,
-        };
-      } else if (item.type === "truefalse" && Array.isArray(item.answer)) {
-        correct = {
-          a: Boolean(item.answer[0]),
-          b: Boolean(item.answer[1]),
-          c: Boolean(item.answer[2]),
-          d: Boolean(item.answer[3]),
-        };
-      }
-
-      await saveQuestionItem(
-        id,
-        {
-          type: item.type,
-          text: item.text,
-          points: item.points || 1,
-          options,
-        },
-        correct,
-        item.explanation || ""
-      );
-    }
-
-    await loadData(id);
   };
 
   if (loading) {
@@ -211,14 +173,23 @@ export default function TeacherExamQuestionsPage() {
 
           {/* Form Editor (khi bật) */}
           {showEditor && (
-            <QuestionEditor
-              initialQuestion={editingQuestion || undefined}
-              onSave={handleSaveQuestion}
-              onCancel={() => {
-                setShowEditor(false);
-                setEditingQuestion(null);
-              }}
-            />
+            <Suspense
+              fallback={
+                <div className="bg-white rounded-3xl p-8 border border-slate-200 text-center flex flex-col items-center justify-center gap-2">
+                  <div className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                  <span className="text-xs text-slate-500 font-medium">Đang tải trình soạn câu hỏi...</span>
+                </div>
+              }
+            >
+              <QuestionEditor
+                initialQuestion={editingQuestion || undefined}
+                onSave={handleSaveQuestion}
+                onCancel={() => {
+                  setShowEditor(false);
+                  setEditingQuestion(null);
+                }}
+              />
+            </Suspense>
           )}
 
           {/* Danh sách câu hỏi */}
@@ -298,12 +269,25 @@ export default function TeacherExamQuestionsPage() {
           )}
 
           {/* Import Dialog */}
-          <ImportDialog
-            isOpen={showImportDialog}
-            onClose={() => setShowImportDialog(false)}
-            onImport={handleImportQuestions}
-            currentQuestionCount={questions.length}
-          />
+          {showImportDialog && (
+            <Suspense
+              fallback={
+                <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center">
+                  <div className="bg-white rounded-2xl p-6 shadow-xl flex items-center gap-3">
+                    <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                    <span className="text-xs text-slate-700 font-bold">Đang tải hộp thoại Import...</span>
+                  </div>
+                </div>
+              }
+            >
+              <ImportDialog
+                isOpen={showImportDialog}
+                onClose={() => setShowImportDialog(false)}
+                onImport={handleImportQuestions}
+                currentQuestionCount={questions.length}
+              />
+            </Suspense>
+          )}
         </main>
       </div>
     </ProtectedRoute>

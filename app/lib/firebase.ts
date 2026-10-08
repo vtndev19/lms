@@ -1,9 +1,6 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth, connectAuthEmulator } from "firebase/auth";
 import { getFirestore, connectFirestoreEmulator } from "firebase/firestore";
-import { getStorage, connectStorageEmulator } from "firebase/storage";
-import { getFunctions, connectFunctionsEmulator } from "firebase/functions";
-import { getAnalytics, isSupported } from "firebase/analytics";
 
 // Cấu hình Firebase dự án vj-lms
 export const firebaseConfig = {
@@ -19,17 +16,33 @@ export const firebaseConfig = {
 export const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
-export const storage = getStorage(app);
-export const functions = getFunctions(app);
 
-// Khởi tạo Analytics nếu chạy trên môi trường browser hỗ trợ
+// Lazy getter cho Firebase Storage khi cần dùng
+let _storage: any = null;
+export const getFirebaseStorage = async () => {
+  if (!_storage) {
+    const { getStorage, connectStorageEmulator } = await import("firebase/storage");
+    _storage = getStorage(app);
+    if (import.meta.env.VITE_USE_EMULATOR === "true") {
+      const host = typeof window !== "undefined" ? window.location.hostname || "localhost" : "localhost";
+      connectStorageEmulator(_storage, host, 9199);
+    }
+  }
+  return _storage;
+};
+
+// Khởi tạo Analytics động ở browser nếu hỗ trợ
 export let analytics: any = null;
 if (typeof window !== "undefined") {
-  isSupported().then((supported) => {
-    if (supported) {
-      analytics = getAnalytics(app);
-    }
-  }).catch(() => {});
+  import("firebase/analytics")
+    .then(({ getAnalytics, isSupported }) => {
+      isSupported().then((supported) => {
+        if (supported) {
+          analytics = getAnalytics(app);
+        }
+      }).catch(() => {});
+    })
+    .catch(() => {});
 }
 
 // Kết nối Emulator cục bộ nếu biến VITE_USE_EMULATOR = "true"
@@ -38,8 +51,6 @@ if (import.meta.env.VITE_USE_EMULATOR === "true") {
     const host = typeof window !== "undefined" ? window.location.hostname || "localhost" : "localhost";
     connectAuthEmulator(auth, `http://${host}:9099`, { disableWarnings: true });
     connectFirestoreEmulator(db, host, 8080);
-    connectStorageEmulator(storage, host, 9199);
-    connectFunctionsEmulator(functions, host, 5001);
     console.log(" Connected to Firebase Local Emulator Suite!");
   } catch (err) {
     console.warn("Could not connect to Firebase emulator:", err);

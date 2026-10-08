@@ -1,8 +1,9 @@
-import * as XLSX from "xlsx";
 import type { Attempt } from "./types";
 import { formatDate } from "./utils";
 
-export function exportResultsToExcel(examTitle: string, attempts: Attempt[]) {
+export async function exportResultsToExcel(examTitle: string, attempts: Attempt[]) {
+  const XLSX = await import("xlsx");
+
   const data = attempts.map((att, idx) => {
     let durationStr = "—";
     if (att.startedAt && att.submittedAt) {
@@ -44,4 +45,12 @@ export function exportResultsToExcel(examTitle: string, attempts: Attempt[]) {
 
   const safeTitle = examTitle.replace(/[^a-zA-Z0-9_\u00C0-\u024F\u1E00-\u1EFF]/g, "_");
   XLSX.writeFile(workbook, `Bang_diem_${safeTitle}.xlsx`);
+}
+
+export async function downloadQuestionTemplateExcel(sampleData: any[]) {
+  const XLSX = await import("xlsx");
+  const ws = XLSX.utils.json_to_sheet(sampleData);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "CauHoi");
+  XLSX.writeFile(wb, "mau_cauhoi.xlsx");
 }

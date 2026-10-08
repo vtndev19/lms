@@ -139,6 +139,8 @@ export const FileList: React.FC<FileListProps> = ({ files, canDelete = false, on
                 <img
                   src={previewFile.downloadUrl || previewFile.path}
                   alt={previewFile.name}
+                  loading="lazy"
+                  decoding="async"
                   className="max-h-full max-w-full object-contain rounded-xl shadow-xs"
                 />
               ) : (

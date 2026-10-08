@@ -3,11 +3,11 @@ import { useNavigate, Link } from "react-router";
 import { Navbar } from "../../components/Navbar";
 import { ProtectedRoute } from "../../components/ProtectedRoute";
 import { useAuth } from "../../context/AuthContext";
-import { getClasses } from "../../lib/db";
+import { joinClassByCode } from "../../lib/db";
 import { PlusCircle, ArrowLeft, CheckCircle2, AlertCircle } from "lucide-react";
 
 export default function StudentJoinClassPage() {
-  const { userProfile } = useAuth();
+  const { userProfile, refreshUserProfile } = useAuth();
   const navigate = useNavigate();
 
   const [joinCode, setJoinCode] = useState("");
@@ -26,22 +26,22 @@ export default function StudentJoinClassPage() {
       return;
     }
 
+    if (!userProfile) {
+      setError("Vui lòng đăng nhập trước khi tham gia lớp học!");
+      return;
+    }
+
     setLoading(true);
     try {
-      const classes = await getClasses();
-      const matched = classes.find((c) => c.joinCode.toUpperCase() === cleanCode);
-
-      if (!matched) {
-        setError("Không tìm thấy lớp học nào với mã này. Vui lòng kiểm tra lại với thầy/cô.");
-        return;
-      }
+      const matched = await joinClassByCode(cleanCode, userProfile.uid, userProfile.name);
+      await refreshUserProfile();
 
       setSuccess(`Tham gia thành công lớp: ${matched.name}! Đang chuyển hướng...`);
       setTimeout(() => {
         navigate("/s");
-      }, 1500);
+      }, 1200);
     } catch (err: any) {
-      setError("Lỗi: " + err.message);
+      setError(err.message || "Đã xảy ra lỗi khi tham gia lớp.");
     } finally {
       setLoading(false);
     }

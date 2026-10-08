@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 
 export default function HomePage() {
-  const { userProfile, role, loginDemo } = useAuth();
+  const { userProfile, role } = useAuth();
 
   if (userProfile) {
     return <Navigate to={role === "teacher" ? "/t" : "/s"} replace />;
@@ -70,22 +70,20 @@ export default function HomePage() {
           import đề tự động từ Excel/JSON và tự động chấm điểm bảo mật trên máy chủ.
         </p>
 
-        {/* Quick Demo Access Buttons */}
+        {/* CTA Buttons */}
         <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto mb-16">
-          <button
-            type="button"
-            onClick={() => loginDemo("teacher")}
+          <Link
+            to="/register"
             className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-xl shadow-indigo-500/25 transition-all flex items-center justify-center gap-2 hover:scale-102"
           >
-            Trải nghiệm là Giáo viên <ArrowRight className="w-4 h-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => loginDemo("student")}
+            Đăng ký tài khoản mới <ArrowRight className="w-4 h-4" />
+          </Link>
+          <Link
+            to="/login"
             className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 font-bold text-sm shadow-xs transition-all flex items-center justify-center gap-2 hover:scale-102"
           >
-            Trải nghiệm là Học sinh <ArrowRight className="w-4 h-4" />
-          </button>
+            Đăng nhập hệ thống <ArrowRight className="w-4 h-4" />
+          </Link>
         </div>
 
         {/* Feature Grid */}

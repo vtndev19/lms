@@ -28,19 +28,29 @@ export default function StudentDashboard() {
 
   useEffect(() => {
     async function loadData() {
+      if (!userProfile?.uid) return;
       setLoading(true);
       try {
-        const [eList, cList] = await Promise.all([getExams(), getClasses()]);
-        // Lọc các đề published
-        const publishedExams = eList.filter((e) => e.status === "published");
-        setExams(publishedExams);
+        const studentClassIds = userProfile.classIds || [];
+        const [eList, cList] = await Promise.all([
+          getExams({ status: "published" }),
+          getClasses(),
+        ]);
+
+        // Lọc các đề thi được giao cho lớp của học sinh (hoặc đề không giới hạn lớp)
+        const relevantExams = eList.filter((e) => {
+          if (!e.classIds || e.classIds.length === 0) return true;
+          return e.classIds.some((cid) => studentClassIds.includes(cid));
+        });
+
+        setExams(relevantExams);
         setClasses(cList);
 
-        // Lấy lịch sử làm bài
+        // Lấy lịch sử làm bài thật của học sinh này từ Firestore
         const atts: Record<string, Attempt[]> = {};
-        for (const e of publishedExams) {
+        for (const e of relevantExams) {
           const eAtts = await getAttemptsByExamId(e.id);
-          atts[e.id] = eAtts.filter((a) => a.studentId === (userProfile?.uid || "demo-student-uid"));
+          atts[e.id] = eAtts.filter((a) => a.studentId === userProfile.uid);
         }
         setAttemptsMap(atts);
       } finally {
@@ -48,7 +58,7 @@ export default function StudentDashboard() {
       }
     }
     loadData();
-  }, [userProfile?.uid]);
+  }, [userProfile?.uid, userProfile?.classIds]);
 
   const classMap = new Map(classes.map((c) => [c.id, c.name]));
 
@@ -208,6 +218,7 @@ export default function StudentDashboard() {
 
                       <Link
                         to={`/s/exams/${exam.id}`}
+                        prefetch="intent"
                         className="inline-flex items-center gap-1 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs transition-colors"
                       >
                         {hasSubmitted ? "Xem kết quả" : "Làm bài ngay"}{" "}

@@ -4,7 +4,7 @@ import { Navbar } from "../../components/Navbar";
 import { ProtectedRoute } from "../../components/ProtectedRoute";
 import { FileUploader } from "../../components/FileUploader";
 import { FileList } from "../../components/FileList";
-import { getExamById, saveExam } from "../../lib/db";
+import { getExamById, uploadExamFile, deleteExamFile } from "../../lib/db";
 import type { Exam, ExamFile } from "../../lib/types";
 import { ArrowLeft, Paperclip, AlertCircle } from "lucide-react";
 
@@ -29,38 +29,22 @@ export default function TeacherExamFilesPage() {
 
   const handleUpload = async (file: File) => {
     if (!exam || !id) return;
-
-    // Giả lập upload lên Cloud Storage hoặc nạp Data URL / Object URL
-    const fileUrl = URL.createObjectURL(file);
-    const newFile: ExamFile = {
-      id: `f-${Date.now()}`,
-      name: file.name,
-      path: `exams/${id}/files/${Date.now()}_${file.name}`,
-      size: file.size,
-      contentType: file.type || "application/octet-stream",
-      uploadedAt: new Date().toISOString(),
-      downloadUrl: fileUrl,
-    };
-
-    const updatedFiles = [...(exam.files || []), newFile];
-    const updatedExam = await saveExam({
-      ...exam,
-      files: updatedFiles,
-    });
-    setExam(updatedExam);
+    try {
+      await uploadExamFile(id, file);
+      await loadExam(id);
+    } catch (err: any) {
+      alert("Lỗi upload file: " + err.message);
+    }
   };
 
   const handleDeleteFile = async (fileToDelete: ExamFile) => {
-    if (!exam || !confirm(`Xác nhận xóa file "${fileToDelete.name}"?`)) return;
-
-    const updatedFiles = (exam.files || []).filter(
-      (f) => f.path !== fileToDelete.path && f.name !== fileToDelete.name
-    );
-    const updatedExam = await saveExam({
-      ...exam,
-      files: updatedFiles,
-    });
-    setExam(updatedExam);
+    if (!exam || !id || !confirm(`Xác nhận xóa file "${fileToDelete.name}"?`)) return;
+    try {
+      await deleteExamFile(id, fileToDelete);
+      await loadExam(id);
+    } catch (err: any) {
+      alert("Lỗi xóa file: " + err.message);
+    }
   };
 
   if (loading) {

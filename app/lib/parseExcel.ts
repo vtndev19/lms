@@ -1,12 +1,12 @@
-import * as XLSX from "xlsx";
 import type { QuestionImportItem } from "./types";
 import type { ParseResult } from "./parseJson";
 
-export function parseQuestionsExcel(arrayBuffer: ArrayBuffer): ParseResult {
+export async function parseQuestionsExcel(arrayBuffer: ArrayBuffer): Promise<ParseResult> {
+  const XLSX = await import("xlsx");
   const errors: Array<{ index: number; message: string }> = [];
   const questions: QuestionImportItem[] = [];
 
-  let workbook: XLSX.WorkBook;
+  let workbook: any;
   try {
     workbook = XLSX.read(arrayBuffer, { type: "array" });
   } catch (err: any) {

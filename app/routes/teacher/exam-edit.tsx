@@ -31,7 +31,8 @@ export default function TeacherExamEditPage() {
 
   useEffect(() => {
     async function init() {
-      const cList = await getClasses();
+      if (!userProfile?.uid) return;
+      const cList = await getClasses(userProfile.uid);
       setClasses(cList);
 
       if (!isNew && id) {
@@ -54,12 +55,16 @@ export default function TeacherExamEditPage() {
       setLoading(false);
     }
     init();
-  }, [id, isNew]);
+  }, [id, isNew, userProfile?.uid]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) {
       alert("Vui lòng nhập tiêu đề đề thi!");
+      return;
+    }
+    if (!userProfile?.uid) {
+      alert("Vui lòng đăng nhập tài khoản giáo viên!");
       return;
     }
 
@@ -69,7 +74,7 @@ export default function TeacherExamEditPage() {
         id: isNew ? undefined : id,
         title: title.trim(),
         description: description.trim(),
-        ownerId: userProfile?.uid || "demo-teacher-uid",
+        ownerId: userProfile.uid,
         classIds,
         status,
         durationMin: durationMin ? Number(durationMin) : null,
