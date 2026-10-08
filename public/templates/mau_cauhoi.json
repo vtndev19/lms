@@ -1,0 +1,42 @@
+{
+  "questions": [
+    {
+      "type": "single",
+      "text": "Ngôn ngữ nào sau đây là ngôn ngữ biên dịch trước khi chạy?",
+      "options": ["Python", "C++", "HTML", "SQL"],
+      "answer": "b",
+      "points": 1,
+      "explanation": "C++ là ngôn ngữ biên dịch sang mã máy thông qua compiler như g++ hoặc clang."
+    },
+    {
+      "type": "multiple",
+      "text": "Chọn các kiểu dữ liệu số nguyên trong ngôn ngữ lập trình C++:",
+      "options": ["int", "float", "long long", "double"],
+      "answer": ["a", "c"],
+      "points": 1,
+      "explanation": "int và long long là kiểu nguyên. float và double là kiểu số thực."
+    },
+    {
+      "type": "truefalse",
+      "text": "Xét đoạn chương trình tính diện tích hình tròn $S = \\pi r^2$. Các phát biểu sau đúng hay sai?",
+      "options": [
+        "Biến bán kính $r$ phải là số thực dương",
+        "Số $\\pi$ có giá trị xấp xỉ 3.14159",
+        "Diện tích $S$ có thể nhận giá trị âm",
+        "Nếu $r = 1$ thì $S \\approx 3.14$"
+      ],
+      "answer": [true, true, false, true],
+      "points": 2,
+      "explanation": "Diện tích hình tròn không thể âm. Các ý còn lại đều đúng."
+    },
+    {
+      "type": "short",
+      "text": "Kết quả của phép chia lấy phần nguyên $7 / 2$ trong ngôn ngữ C++ là bao nhiêu?",
+      "answer": ["3", "3.0"],
+      "numeric": true,
+      "tolerance": 0,
+      "points": 1,
+      "explanation": "Trong C++, phép chia 2 số nguyên 7 và 2 sẽ trả về thương nguyên là 3."
+    }
+  ]
+}
