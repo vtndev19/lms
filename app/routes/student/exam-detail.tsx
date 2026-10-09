@@ -78,12 +78,17 @@ export default function StudentExamDetailPage() {
       }
 
       const attemptId = `att-${Date.now()}`;
+      const matchingClassId =
+        (exam.classIds || []).find((cid) => (userProfile.classIds || []).includes(cid)) ||
+        exam.classIds[0] ||
+        "";
+
       const newAttempt: Attempt = {
         id: attemptId,
         examId: id,
         studentId: userProfile.uid,
         studentName: userProfile.name || "Học sinh",
-        classId: exam.classIds[0] || "",
+        classId: matchingClassId,
         attemptNo: completedCount + 1,
         status: "in_progress",
         startedAt: now.toISOString(),

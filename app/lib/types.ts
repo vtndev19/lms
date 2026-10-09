@@ -6,16 +6,61 @@ export interface UserProfile {
   email: string;
   role: UserRole;
   classIds: string[];
+  studentCode?: string;
+  username?: string;
+  dob?: string;
+  initialPassword?: string;
+  isBlocked?: boolean;
+  gender?: string;
+  phone?: string;
+  className?: string;
   createdAt?: any;
+  updatedAt?: any;
+}
+
+export interface StudentImportItem {
+  name: string;
+  studentCode: string;
+  dob?: string;
+  className?: string;
+  gender?: string;
+  phone?: string;
+  email?: string;
+  username?: string;
+  password?: string;
+}
+
+export interface ClassStudent {
+  studentId: string;
+  studentName: string;
+  studentEmail?: string;
+  studentCode?: string;
+  joinedAt?: any;
+}
+
+export interface ClassStudentSubmission {
+  student: ClassStudent;
+  status: "submitted" | "in_progress" | "not_started";
+  attempt?: Attempt;
+  score?: number | null;
+  maxScore?: number | null;
+  submittedAt?: any;
+  attemptCount?: number;
 }
 
 export interface ClassRoom {
   id: string;
   name: string;
+  description?: string;
   teacherId: string;
+  teacherName?: string;
+  teacherIds?: string[]; // Danh sách ID các giáo viên được phân công / thêm vào lớp
+  subject?: string; // Môn học: Toán, Vật lý, Hóa học, Sinh học, Tin học, Ngữ văn, Tiếng Anh...
+  grade?: string; // Khối lớp: Khối 10, Khối 11, Khối 12...
   joinCode: string;
   createdAt?: any;
   studentCount?: number;
+  examsCount?: number;
 }
 
 export type ExamStatus = "draft" | "published" | "closed";

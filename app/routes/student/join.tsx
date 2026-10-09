@@ -33,7 +33,7 @@ export default function StudentJoinClassPage() {
 
     setLoading(true);
     try {
-      const matched = await joinClassByCode(cleanCode, userProfile.uid, userProfile.name);
+      const matched = await joinClassByCode(cleanCode, userProfile.uid, userProfile.name, userProfile.email || "");
       await refreshUserProfile();
 
       setSuccess(`Tham gia thành công lớp: ${matched.name}! Đang chuyển hướng...`);

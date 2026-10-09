@@ -26,11 +26,12 @@ export const Navbar: React.FC = () => {
   const teacherLinks = [
     { to: "/t", label: "Tổng quan", icon: BookOpen },
     { to: "/t/classes", label: "Lớp học", icon: Users },
+    { to: "/t/students", label: "Học sinh", icon: GraduationCap },
     { to: "/t/exams", label: "Đề trắc nghiệm", icon: FileCheck },
   ];
 
   const studentLinks = [
-    { to: "/s", label: "Bài được giao", icon: BookOpen },
+    { to: "/s", label: "Lớp học & Bài tập", icon: BookOpen },
     { to: "/s/join", label: "Tham gia lớp", icon: PlusCircle },
   ];
 

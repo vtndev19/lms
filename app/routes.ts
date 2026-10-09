@@ -8,6 +8,7 @@ export default [
   // Tuyến đường Giáo viên (Teacher)
   route("t", "routes/teacher/dashboard.tsx"),
   route("t/classes", "routes/teacher/classes.tsx"),
+  route("t/students", "routes/teacher/students.tsx"),
   route("t/exams", "routes/teacher/exams.tsx"),
   route("t/exams/new", "routes/teacher/exam-create.tsx"),
   route("t/exams/:id", "routes/teacher/exam-edit.tsx"),

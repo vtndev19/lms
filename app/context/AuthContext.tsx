@@ -38,6 +38,8 @@ export function getFirebaseErrorMessage(error: any): string {
       return "Lỗi kết nối mạng. Vui lòng kiểm tra lại đường truyền internet.";
     case "auth/too-many-requests":
       return "Tài khoản bị tạm khóa do nhập sai nhiều lần. Vui lòng thử lại sau ít phút.";
+    case "auth/unauthorized-domain":
+      return "Tên miền hoặc địa chỉ IP hiện tại chưa được ủy quyền trong Firebase Auth. Hãy truy cập qua 'http://localhost' thay vì '127.0.0.1', hoặc thêm tên miền này vào mục 'Authorized domains' trên Firebase Console.";
     default:
       return error?.message || "Đã xảy ra lỗi trong quá trình xác thực.";
   }
@@ -54,6 +56,7 @@ interface AuthContextType {
   resetPassword: (email: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUserProfile: () => Promise<UserProfile | null>;
+  switchRole: (newRole: UserRole) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -65,8 +68,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchProfile = useCallback(async (uid: string, fallbackUser?: FirebaseUser | null): Promise<UserProfile> => {
     try {
-      const userDoc = await getDoc(doc(db, "users", uid));
-      if (userDoc.exists()) {
+      // Giới hạn thời gian chờ Firestore tối đa 3 giây tránh treo màn hình khi mạng chập chờn
+      const fetchPromise = getDoc(doc(db, "users", uid));
+      const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000));
+      const userDoc = await Promise.race([fetchPromise, timeoutPromise]);
+
+      if (userDoc && userDoc.exists()) {
         const data = userDoc.data() as Omit<UserProfile, "uid">;
         const profile: UserProfile = {
           uid,
@@ -80,12 +87,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.warn("Lỗi đọc Firestore users:", err);
     }
 
-    // Nếu document chưa tồn tại, tạo mặc định
+    // Nếu document chưa tồn tại hoặc timeout, tạo mặc định
     const fallback: UserProfile = {
       uid,
       name: fallbackUser?.displayName || fallbackUser?.email?.split("@")[0] || "Người dùng",
       email: fallbackUser?.email || "",
-      role: "student",
+      role: "teacher", // Mặc định tài khoản thử nghiệm nếu chưa cấu hình
       classIds: [],
     };
 
@@ -107,11 +114,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return await fetchProfile(auth.currentUser.uid, auth.currentUser);
   }, [fetchProfile]);
 
+  const switchRole = async (newRole: UserRole): Promise<void> => {
+    if (!auth.currentUser) return;
+    try {
+      const { updateDoc } = await import("firebase/firestore");
+      await updateDoc(doc(db, "users", auth.currentUser.uid), { role: newRole });
+      if (userProfile) {
+        setUserProfile({ ...userProfile, role: newRole });
+      }
+    } catch (err) {
+      console.warn("Lỗi switchRole:", err);
+      if (userProfile) {
+        setUserProfile({ ...userProfile, role: newRole });
+      }
+    }
+  };
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
       if (user) {
-        await fetchProfile(user.uid, user);
+        try {
+          const profile = await fetchProfile(user.uid, user);
+          if (profile?.isBlocked) {
+            console.warn("Tài khoản bị khóa quyền truy cập.");
+            await signOut(auth);
+            setUserProfile(null);
+            setCurrentUser(null);
+          }
+        } catch {}
       } else {
         setUserProfile(null);
       }
@@ -121,9 +152,50 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return unsubscribe;
   }, [fetchProfile]);
 
-  const login = async (email: string, pass: string): Promise<UserProfile> => {
-    const cred = await signInWithEmailAndPassword(auth, email, pass);
+  const login = async (identifier: string, pass: string): Promise<UserProfile> => {
+    let loginEmail = identifier.trim();
+
+    // Nếu người dùng không nhập email có dấu @ (nhập mã học sinh hoặc username)
+    if (!loginEmail.includes("@")) {
+      try {
+        const { collection, query, where, getDocs } = await import("firebase/firestore");
+        const usersRef = collection(db, "users");
+        // Thử tìm theo username
+        let snap = await getDocs(query(usersRef, where("username", "==", loginEmail.toLowerCase())));
+        if (snap.empty) {
+          // Thử tìm theo studentCode dạng chữ hoa
+          snap = await getDocs(query(usersRef, where("studentCode", "==", loginEmail.toUpperCase())));
+        }
+        if (snap.empty) {
+          // Thử tìm theo studentCode nguyên bản
+          snap = await getDocs(query(usersRef, where("studentCode", "==", loginEmail)));
+        }
+
+        if (!snap.empty) {
+          const uDoc = snap.docs[0].data();
+          if (uDoc.isBlocked) {
+            throw new Error("Tài khoản của bạn đã bị khóa quyền truy cập. Vui lòng liên hệ giáo viên để được hỗ trợ.");
+          }
+          if (uDoc.email) {
+            loginEmail = uDoc.email;
+          }
+        }
+      } catch (lookupErr: any) {
+        if (lookupErr?.message?.includes("đã bị khóa")) {
+          throw lookupErr;
+        }
+        console.warn("Tra cứu học sinh:", lookupErr);
+      }
+    }
+
+    const cred = await signInWithEmailAndPassword(auth, loginEmail, pass);
     const profile = await fetchProfile(cred.user.uid, cred.user);
+
+    if (profile.isBlocked) {
+      await signOut(auth);
+      throw new Error("Tài khoản của bạn đã bị khóa quyền truy cập. Vui lòng liên hệ giáo viên để được hỗ trợ.");
+    }
+
     return profile;
   };
 
@@ -228,6 +300,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         resetPassword,
         logout,
         refreshUserProfile,
+        switchRole,
       }}
     >
       {children}
